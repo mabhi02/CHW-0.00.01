@@ -203,18 +203,6 @@ def AVM(q,k,o):
         quotes = []
         # Load the spaCy model
         #spacy.cli.download('en_core_web_sm')
-
-        import subprocess
-        
-        # Define the command to download the spaCy model
-        command = ["python3", "-m", "spacy", "download", "en_core_web_sm"]
-        
-        # Make a subprocess call
-        try:
-            subprocess.run(command, check=True)
-            print("spaCy model 'en_core_web_sm' downloaded successfully.")
-        except subprocess.CalledProcessError as e:
-            print(f"Error downloading spaCy model: {e}")
         
         nlp = spacy.load("en_core_web_sm")
 
