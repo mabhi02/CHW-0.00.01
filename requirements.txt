@@ -27,7 +27,7 @@ pandas
 transformers
 torch
 tqdm
-openai
+openai==0.28
 spacy
 scikit-learn
 pinecone-client
