@@ -18,6 +18,7 @@ streamlit
 spacy
 scikit-learn
 pinecone-client
+langchain==0.0.316
 langchain-openai
 PyPDF2
 pymupdf
