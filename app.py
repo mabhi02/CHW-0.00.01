@@ -309,8 +309,59 @@ def AVM(q,k,o):
     )
 
     analysis_paragraph = response['choices'][0]['text'].strip()
-    return analysis_paragraph
-
+    
+    def getFinalSummary(my_list, queryContext):
+      my_list = my_list
+      queryContext = queryContext
+    
+      # Function to split a list into equal sublists
+      def split_list(lst, num_sublists):
+          avg = len(lst) // num_sublists
+          remainder = len(lst) % num_sublists
+          return [lst[i * avg + min(i, remainder):(i + 1) * avg + min(i + 1, remainder)] for i in range(num_sublists)]
+    
+      # Split 'my_list' into 10 equal sublists
+      sublists = split_list(my_list, 10)
+    
+      # Generate summaries for each sublist using the OpenAI API
+      sublist_summaries = []
+    
+      for i, sublist in enumerate(sublists):
+          sublist_text = ' '.join(sublist)
+    
+          response = openai.Completion.create(
+              model="gpt-3.5-turbo-instruct",  # You can adjust the model as needed
+              prompt= (queryContext+sublist_text),
+              max_tokens=70,  # Adjust as needed for each sublist summary
+              temperature=0.9  # Adjust the temperature for diversity (0.0 for deterministic, higher for more randomness)
+          )
+    
+          # Extract the summary from the API response
+          summary = response['choices'][0]['text'].strip()
+          sublist_summaries.append(summary)
+    
+      # Combine the 10 summaries into one variable
+      combined_summary = ' '.join(sublist_summaries)
+    
+      # Add a specific prompt tailored to your data
+      specific_prompt = f"Given the following summaries related to your specific domain:\n{combined_summary}\n\nGenerate a coherent final summary that captures the essence of the provided information."
+    
+      specific_prompt = queryContext + specific_prompt
+      # Use OpenAI API to generate the final coherent summary
+      response_combined = openai.Completion.create(
+          model="gpt-3.5-turbo-instruct",
+          prompt=specific_prompt,
+          max_tokens=100,  # Adjust as needed for the final combined summary
+          temperature=0.9
+      )
+    
+      # Extract the final summary from the API response
+      final_summary = response_combined['choices'][0]['text'].strip()
+    
+      return final_summary
+    queryContext = query + contexts
+    response = getFinalSummary(my_list, queryContext)
+    return response
 #print(AVM("If the CHC is far away where should people go?","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","86f31e00-a5cc-438d-b95b-4089562e9b57"))
 
 # Streamlit App
