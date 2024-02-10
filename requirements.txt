@@ -2,6 +2,7 @@ fitz
 pymupdf
 PyMuPDF
 textblob
+tiktoken
 nltk
 matplotlib
 frontend
