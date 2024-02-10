@@ -202,7 +202,7 @@ def AVM(q,k,o):
 
         quotes = []
         # Load the spaCy model
-        spacy.cli.download('en_core_web_sm')
+        #spacy.cli.download('en_core_web_sm')
         nlp = spacy.load("en_core_web_sm")
 
         # Sample text (replace with your 'one_big' variable)
