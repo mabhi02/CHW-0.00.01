@@ -23,15 +23,6 @@ try:
 except subprocess.CalledProcessError as e:
     print(f"Error installing transformers: {e}")
 
-install_command = "pip install langchain"
-
-# Execute the command using subprocess
-try:
-    subprocess.run(install_command, shell=True, check=True)
-    print("langchain library installed successfully.")
-except subprocess.CalledProcessError as e:
-    print(f"Error installing langchain: {e}")
-
 #!pip install pymupdf
 import fitz  # PyMuPDF
 import pandas as pd
@@ -59,17 +50,6 @@ from pinecone import Pinecone
 from pinecone import ServerlessSpec
 
 #OpenAI
-#!pip install langchain==0.0.316
-#!pip install -U langchain-openai
-#!pip install -qU langchain-openai
-from langchain.embeddings.openai import OpenAIEmbeddings
-#openai.api_key = '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'   -- 3.5 Key
-
-#!pip install langchain --upgrade
-
-#!pip install -U openai pinecone-client datasets
-#!pip install openai==0.28.0
-from langchain.embeddings.openai import OpenAIEmbeddings
 from pinecone import Pinecone
 #!pip install PyPDF2
 import PyPDF2
@@ -116,19 +96,6 @@ def temporal_analysis(text):
 
 
 def AVM(q,k,o):
-
-    desired_version = "0.28.0"
-    
-    # Construct the pip install command
-    install_command = f"pip install openai=={desired_version}"
-    
-    # Execute the command using subprocess
-    try:
-        subprocess.run(install_command, shell=True, check=True)
-        print(f"openai version {desired_version} installed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error installing openai: {e}")
-
     openai.api_key = k
     pineconeKey = o
     inputQuery = q
