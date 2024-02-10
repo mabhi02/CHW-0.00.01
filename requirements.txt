@@ -15,7 +15,7 @@ transformers
 torch
 tqdm
 streamlit
-spacy
+spacy==3.2.1
 scikit-learn
 pinecone-client
 PyPDF2
