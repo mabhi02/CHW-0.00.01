@@ -116,14 +116,18 @@ def temporal_analysis(text):
 
 
 def AVM(q,k,o):
+
+    desired_version = "0.28.0"
     
+    # Construct the pip install command
+    install_command = f"pip install openai=={desired_version}"
+    
+    # Execute the command using subprocess
     try:
         subprocess.run(install_command, shell=True, check=True)
-        print("transformers library installed successfully.")
+        print(f"openai version {desired_version} installed successfully.")
     except subprocess.CalledProcessError as e:
-        print(f"Error installing transformers: {e}")
-
-    from transformers import DistilBertTokenizer, DistilBertModel
+        print(f"Error installing openai: {e}")
 
     openai.api_key = k
     pineconeKey = o
