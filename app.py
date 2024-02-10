@@ -23,6 +23,15 @@ try:
 except subprocess.CalledProcessError as e:
     print(f"Error installing transformers: {e}")
 
+install_command = "pip install langchain"
+
+# Execute the command using subprocess
+try:
+    subprocess.run(install_command, shell=True, check=True)
+    print("langchain library installed successfully.")
+except subprocess.CalledProcessError as e:
+    print(f"Error installing langchain: {e}")
+
 #!pip install pymupdf
 import fitz  # PyMuPDF
 import pandas as pd
