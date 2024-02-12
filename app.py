@@ -94,11 +94,10 @@ def temporal_analysis(text):
     fdist = FreqDist(words)
     return fdist
 
-
 def AVM(q,k,o):
     openai.api_key = k
-    pineconeKey = o
-    inputQuery = q
+    pinecone_key = o
+    query =  q
     def getData(path):
         def extract_text_from_pdf(pdf_path):
             text = ""
@@ -124,22 +123,23 @@ def AVM(q,k,o):
 
         # Example usage:
         # Assuming you have already extracted the text and stored it in the 'text' variable
-        text_parts = split_text_into_parts(text, num_parts=10)
+        text_parts = split_text_into_parts(text, num_parts=20)
         return text_parts
+
 
     my_list = getData("book-no-1.pdf")
 
     def getIndex():
-        pc = Pinecone(api_key=pineconeKey)
+        pc = Pinecone(api_key=pinecone_key)
         index = pc.Index("quickstart")
         return index
 
     index = getIndex()
-    def upserts(q, values, index):
-        index = index
-        my_list = values
 
-        query = q
+    def upserts(query, my_list, index):
+        index = index
+        my_list = my_list
+        query = query
         MODEL = "text-embedding-3-small"
 
         res = openai.Embedding.create(
@@ -167,201 +167,81 @@ def AVM(q,k,o):
             # upsert to Pinecone
             index.upsert(vectors=list(to_upsert))
 
-    upserts(inputQuery, my_list, index)
+    upserts(query, my_list, index)
 
-    def generateQuotes(q):
-
-        query = q
-        MODEL = "text-embedding-3-small"
-
-        xq = openai.Embedding.create(input=query, engine=MODEL)['data'][0]['embedding']
-
-        res = index.query(vector = [xq], top_k=len(my_list), include_metadata=True)
-
-        #Only returns queries where score is greater than threshold
-        threshold = 0.75
-        filtered_res = [match for match in res['matches'] if match['score'] > threshold]
-
-        count = 0
-        responses = []
-        scores = []
-        for match in res['matches']:
-            #print(f"{match['score']:.2f}: {match['metadata']['text']}", "/n")
-            responses.append(match['metadata']['text'])
-            scores.append(match['score'])
-            count += 1
-
-        relevancy = max(scores)
-        relevancy
-
-        one_big = ''.join(responses)
-
-        #print(one_big)
-
-        #Quotes
-
-        quotes = []
-        # Load the spaCy model
-        #spacy.cli.download('en_core_web_sm')
-        
-        nlp = spacy.load("en_core_web_sm")
-
-        # Sample text (replace with your 'one_big' variable)
-        one_big = one_big
-
-        # Your query
+    def getRes(query):
         query = query
-
-        # Tokenize and process the entire text
-        doc = nlp(one_big)
-
-        # Tokenize and process the query
-        query_doc = nlp(query)
-
-        # Create a list of sentences from the document
-        sentences = [sent.text for sent in doc.sents]
-
-        # Vectorize the sentences and the query
-        vectorizer = TfidfVectorizer()
-        X = vectorizer.fit_transform([query] + sentences)
-
-        # Calculate cosine similarity between the query and each sentence
-        cosine_similarities = cosine_similarity(X[0], X[1:]).flatten()
-
-        # Sort the sentences by similarity and get the indices of the top 5
-        top_indices = cosine_similarities.argsort()[-100:][::-1]
-
-        def get_top_quotes(sentences, top_indices):
-            quotes = []
-            for i, idx in enumerate(top_indices):
-                quote = f"{i+1}. {sentences[idx]}"
-                quotes.append(quote)
-            return quotes
-
-        # Example usage:
-        # Assuming you have sentences and top_indices defined elsewhere
-        # For example:
-        # sentences = ["Quote 1", "Quote 2", "Quote 3", "Quote 4", "Quote 5", "Quote 6"]
-        # top_indices = [1, 3, 5, 0, 2]
-
-        top_quotes = get_top_quotes(sentences, top_indices)
-        return top_quotes
-
-    def getRes(q):
-        query = q
         MODEL = "text-embedding-3-small"
 
         xq = openai.Embedding.create(input=query, engine=MODEL)['data'][0]['embedding']
 
-        res = index.query(vector = [xq], top_k=1, include_metadata=True)
+        res = index.query(vector = [xq], top_k=5, include_metadata=True)
 
         return res
-
-    query = q
-
-    similarity = getRes(query)
-    #justQuotes just uses what the query results from Pinecone itself
-    justQuotes = []
-    for i in range(len(similarity['matches'])):
-        justQuotes.append(similarity['matches'][i]['metadata']['text'])
     
-    #Add the query to context question for prompting
+    def vectorQuotes(query):
+        similarity = getRes(query)
+        justQuotes = []
+        for i in range(len(similarity['matches'])):
+            justQuotes.append(similarity['matches'][i]['metadata']['text'])
+        return justQuotes
+    
+    def getFinalSummaryGPT4(my_list, queryContext):
+        my_list = my_list
+        queryContext = queryContext
 
+        # Function to split a list into equal sublists
+        def split_list(lst, num_sublists):
+            avg = len(lst) // num_sublists
+            remainder = len(lst) % num_sublists
+            return [lst[i * avg + min(i, remainder):(i + 1) * avg + min(i + 1, remainder)] for i in range(num_sublists)]
+
+        # Split 'my_list' into n equal sublists
+        n = 5
+        sublists = split_list(my_list, n)
+
+        # Generate summaries for each sublist using the OpenAI API
+        sublist_summaries = []
+
+        for i, sublist in enumerate(sublists):
+            sublist_text = ' '.join(sublist)
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                temperature=0.9,
+                top_p=0.9,
+                messages= [{ "role": "user", "content": queryContext+sublist_text }] )
+
+            # Extract the summary from the API response
+            summary = response.choices[0].message.content
+            sublist_summaries.append(summary)
+
+        # Combine the 10 summaries into one variable
+        combined_summary = ' '.join(sublist_summaries)
+
+        # Add a specific prompt tailored to your data
+        specific_prompt = f"Given the following summaries:\n{combined_summary}\n\nGenerate a coherent final summary that captures the essence of the provided information."
+
+        specific_prompt = queryContext + specific_prompt
+        # Use OpenAI API to generate the final coherent summary
+
+        response_combined = openai.ChatCompletion.create(
+            model="gpt-4",
+            temperature=0.9,
+            top_p=0.9,
+            messages= [{ "role": "user", "content": specific_prompt}] )
+
+        # Extract the final summary from the API response
+        final_summary = response_combined.choices[0].message.content.strip()
+
+        return final_summary
+    
     contexts = "Based solely on the following information create a coherent answer to the question"
-
-    # Your query string
+    justQuotes = vectorQuotes(query)
     queryContext = query + ". " + contexts
+    responseQuotes = getFinalSummaryGPT4(justQuotes, queryContext)
+    return responseQuotes
 
-    def pineconeQuotes(justQuotes):
-    # Example list of strings
-        string_list = justQuotes
 
-        # Combine the list elements into one big text chunk
-        big_text_chunk = f"{queryContext} {' '.join(string_list)}"
-
-        # Print the combined text chunk
-        return big_text_chunk
-
-    chunkPinecone = pineconeQuotes(justQuotes)
-
-    def spacyQuotes():
-    #This one generates quotes with the spacy integration while
-        quotes = generateQuotes(query)
-
-        # Example list of strings
-        string_list1 = quotes
-
-        # Combine the list elements with the query at the beginning
-        big_text_chunk1 = f"{queryContext} {' '.join(string_list1)}"
-
-        # Print the combined text chunk
-        return big_text_chunk1
-
-    chunkSpacy = spacyQuotes()
-
-    #Can pass either chunkSpacy to analyze spacy ones or chunkPinecone for those directly
-
-    # Use ChatGPT API to generate analysis paragraph
-    response = openai.Completion.create(
-        engine="gpt-3.5-turbo-instruct",
-        prompt=chunkSpacy,
-        max_tokens=150
-    )
-
-    analysis_paragraph = response['choices'][0]['text'].strip()
-    
-    def getFinalSummary(my_list, queryContext):
-      my_list = my_list
-      queryContext = queryContext
-    
-      # Function to split a list into equal sublists
-      def split_list(lst, num_sublists):
-          avg = len(lst) // num_sublists
-          remainder = len(lst) % num_sublists
-          return [lst[i * avg + min(i, remainder):(i + 1) * avg + min(i + 1, remainder)] for i in range(num_sublists)]
-    
-      # Split 'my_list' into 10 equal sublists
-      sublists = split_list(my_list, 10)
-    
-      # Generate summaries for each sublist using the OpenAI API
-      sublist_summaries = []
-    
-      for i, sublist in enumerate(sublists):
-          sublist_text = ' '.join(sublist)
-    
-          response = openai.Completion.create(
-              model="gpt-3.5-turbo-instruct",  # You can adjust the model as needed
-              prompt= (queryContext+sublist_text),
-              max_tokens=70,  # Adjust as needed for each sublist summary
-              temperature=0.9  # Adjust the temperature for diversity (0.0 for deterministic, higher for more randomness)
-          )
-    
-          # Extract the summary from the API response
-          summary = response['choices'][0]['text'].strip()
-          sublist_summaries.append(summary)
-    
-      # Combine the 10 summaries into one variable
-      combined_summary = ' '.join(sublist_summaries)
-    
-      # Add a specific prompt tailored to your data
-      specific_prompt = f"Given the following summaries related to your specific domain:\n{combined_summary}\n\nGenerate a coherent final summary that captures the essence of the provided information."
-    
-      specific_prompt = queryContext + specific_prompt
-      # Use OpenAI API to generate the final coherent summary
-      response_combined = openai.Completion.create(
-          model="gpt-3.5-turbo-instruct",
-          prompt=specific_prompt,
-          max_tokens=100,  # Adjust as needed for the final combined summary
-          temperature=0.9
-      )
-    
-      # Extract the final summary from the API response
-      final_summary = response_combined['choices'][0]['text'].strip()
-    
-      return final_summary
-    queryContext = query + contexts
-    response = getFinalSummary(my_list, queryContext)
-    return response
 #print(AVM("If the CHC is far away where should people go?","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","86f31e00-a5cc-438d-b95b-4089562e9b57"))
 
 # Streamlit App
@@ -419,6 +299,11 @@ def main():
             # Temporal Analysis
             fdist = temporal_analysis(avm)
             df = pd.DataFrame(list(fdist.items()), columns=['Word', 'Frequency']).sort_values(by='Frequency', ascending=False)
+
+            if st.button("👍 Thumbs Up"):
+                st.write("Nice")
+            if st.button("👎 Thumbs Down"):
+                st.write("Oh no")
 
             # Streamlit App
             st.write('DevOps & Analysis')
